@@ -70,6 +70,7 @@ defmodule Core.Domain.Invoker do
 
       with {:ok, worker} <- Nodes.worker_nodes() |> Scheduler.select(func, ivk.config, ivk.args) do
         update_concurrent(worker, +1)
+        File.write!("scheduled_to", "#{worker}\n", [:append])
 
         out =
           case invoke_without_code(worker, ivk, f.hash, func.metadata) do
