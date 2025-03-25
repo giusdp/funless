@@ -259,7 +259,12 @@ defmodule CoreWeb.FunctionController do
   defp parse_metadata(m) do
     case Jason.decode(m) do
       {:ok, json_metadata} ->
-        metadata = struct(Data.FunctionMetadata, json_metadata)
+        parsed_metadata = [
+          tag: json_metadata["tag"] || "",
+          capacity: json_metadata["capacity"] || -1
+        ]
+
+        metadata = struct(Data.FunctionMetadata, parsed_metadata)
         {:ok, metadata}
 
       {:error, _} ->
