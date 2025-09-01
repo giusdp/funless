@@ -12,25 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-defmodule Core.Schemas.AAPPScripts.AAPP do
-  @moduledoc """
-  The AAPP script schema.
-  """
-  use Ecto.Schema
-  import Ecto.Changeset
-
-  schema "aapp_scripts" do
-    field(:name, :string)
-    field(:script, :map)
-
-    timestamps()
-  end
-
-  @doc false
-  def changeset(aapp_script, attrs) do
-    aapp_script
-    |> cast(attrs, [:name, :script])
-    |> validate_required([:name, :script])
-    |> unique_constraint(:name)
-  end
-end
+- t:
+  - invalidate:
+      capacity_used: 50%
+      max_concurrent_invocations: 3

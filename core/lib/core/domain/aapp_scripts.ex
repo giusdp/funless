@@ -20,7 +20,7 @@ defmodule Core.Domain.AAPPScripts do
   import Ecto.Query, warn: false
   alias Core.Repo
 
-  alias Core.Schemas.APPScripts.AAPP
+  alias Core.Schemas.AAPPScripts.AAPP
 
   @doc """
   Returns the list of aapp_scripts.
