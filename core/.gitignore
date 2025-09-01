@@ -39,3 +39,5 @@ core-*.tar
 # Dialyzer
 /priv/plts/*.plt
 /priv/plts/*.plt.hash
+
+.expert/

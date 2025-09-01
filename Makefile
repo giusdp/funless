@@ -67,3 +67,9 @@ test-worker:
 test-all:
 	make test-core
 	make test-worker
+
+sc:
+	cd core && PROMETHEUS_HOST=localhost iex --sname core -S mix phx.server
+
+sw:
+	cd worker && PROMETHEUS_HOST=localhost iex --sname worker -S mix
