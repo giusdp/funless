@@ -74,6 +74,12 @@ defmodule CoreWeb.Router do
     post("/scripts/app", APPScriptController, :create)
     get("/scripts/app/:app_name", APPScriptController, :show)
     # delete("/app/:app_name", AppScriptController, :delete)
+
+    # AAPP scripts routes
+    get("/scripts/aapp", AAPPScriptController, :index)
+    post("/scripts/aapp", AAPPScriptController, :create)
+    get("/scripts/aapp/:aapp_name", AAPPScriptController, :show)
+    delete("/scripts/aapp/:aapp_name", AAPPScriptController, :delete)
   end
 
   # Enable LiveDashboard in development

@@ -25,6 +25,8 @@ servers:
 tags:
   - name: modules
   - name: functions
+  - name: app
+  - name: aapp
 
 components:
   parameters:
@@ -270,6 +272,26 @@ components:
           type: string
           format: binary
           description: File containing the APP script
+    aapp_create_update:
+      type: object
+      properties:
+        name:
+          description: Name of the AAPP script
+          type: string
+        file:
+          type: string
+          format: binary
+          description: File containing the AAPP script
+    single_aapp_result:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            name:
+              type: string
+            content:
+              type: string
     single_app_result:
       type: object
       properties:
@@ -654,6 +676,92 @@ paths:
         - app
       parameters:
         - $ref: "#/components/parameters/module_name"
+      responses:
+        "200":
+          $ref: "#/components/responses/null_response"
+        default:
+          $ref: "#/components/responses/unexpected_error"
+
+  /v1/scripts/aapp:
+    # GET /aapp
+    get:
+      summary: List current AAPP scripts
+      operationId: list_aapp
+      description: List all AAPP scripts
+      tags:
+        - aapp
+      responses:
+        "200":
+          description: An array of AAPP scripts names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        default:
+          $ref: "#/components/responses/unexpected_error"
+    # POST /aapp
+    post:
+      summary: Create new AAPP script
+      operationId: create_aapp
+      description: Create a new AAPP script
+      tags:
+        - aapp
+      requestBody:
+        description: AAPP to create
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/aapp_create_update"
+            encoding:
+              file:
+                contentType: application/octet-stream
+      responses:
+        "201":
+          $ref: "#/components/responses/null_response"
+        default:
+          $ref: "#/components/responses/unexpected_error"
+
+  /v1/scripts/aapp/{aapp_name}:
+    # GET /aapp/{aapp}
+    get:
+      summary: Show AAPP info
+      operationId: show_aapp_by_name
+      description: Get AAPP data (name, content of script)
+      tags:
+        - aapp
+      parameters:
+        - name: aapp_name
+          in: path
+          required: true
+          description: The name of the AAPP script to retrieve
+          schema:
+            type: string
+      responses:
+        "200":
+          description: AAPP script data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/single_aapp_result"
+        default:
+          $ref: "#/components/responses/unexpected_error"
+      # DELETE /aapp/{aapp}
+    delete:
+      summary: Delete AAPP
+      operationId: delete_aapp
+      description: Delete single AAPP script
+      tags:
+        - aapp
+      parameters:
+        - name: aapp_name
+          in: path
+          required: true
+          description: The name of the AAPP script to delete
+          schema:
+            type: string
       responses:
         "200":
           $ref: "#/components/responses/null_response"
