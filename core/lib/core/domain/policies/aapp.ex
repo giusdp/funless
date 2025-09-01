@@ -199,18 +199,20 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
   def valid?(
         %Data.Worker{
           concurrent_functions: c,
-          resources: %Data.Worker.Metrics{
-            memory: %{available: available, total: total}
-          }
+          resources: %Data.Worker.Metrics{memory: memory}
         } = _w,
         %Data.FunctionStruct{
-          metadata: %Data.FunctionMetadata{
-            capacity: function_capacity
-          }
+          metadata: %Data.FunctionMetadata{capacity: function_capacity}
         },
         invalidate_capacity,
         invalidate_invocations
       ) do
+    {available, total} =
+      case memory do
+        %{free: free, total: total} -> {free, total}
+        %{available: available, total: total} -> {available, total}
+      end
+
     function_capacity <= available and
       (invalidate_invocations == :infinity or c < invalidate_invocations) and
       (invalidate_capacity == :infinity or

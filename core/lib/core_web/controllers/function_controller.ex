@@ -16,6 +16,7 @@ defmodule CoreWeb.FunctionController do
   use CoreWeb, :controller
 
   alias Core.Domain.{
+    AAPPScripts,
     APPScripts,
     DataSink,
     Events,
@@ -57,6 +58,11 @@ defmodule CoreWeb.FunctionController do
           %{name: ^script_name, script: script} = APPScripts.get_app_script_by_name(script_name)
 
           Parsers.APP.from_string_keys(script)
+
+        %{"language" => "aapp", "script" => script_name} ->
+          %{name: ^script_name, script: script} = AAPPScripts.get_aapp_script_by_name(script_name)
+
+          Parsers.AAPP.from_string_keys(script)
       end
 
     ivk = %InvokeParams{
