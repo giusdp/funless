@@ -43,6 +43,7 @@ defmodule Core.Application do
       {Core.Adapters.Telemetry.Supervisor, []},
       {Cluster.Supervisor, [topologies, [name: Core.ClusterSupervisor]]},
       {Core.Adapters.Subjects.Cache, []},
+      {Core.Adapters.AffinityTracker, []},
       {Core.Adapters.Connectors.Supervisor, []},
       {Core.Adapters.DataSinks.Supervisor, []}
     ]

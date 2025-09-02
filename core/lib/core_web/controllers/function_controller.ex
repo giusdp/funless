@@ -265,7 +265,12 @@ defmodule CoreWeb.FunctionController do
   defp parse_metadata(m) do
     case Jason.decode(m) do
       {:ok, json_metadata} ->
-        metadata = struct(Data.FunctionMetadata, json_metadata)
+        metadata =
+          json_metadata
+          |> Enum.map(fn {k, v} -> {String.to_atom(k), v} end)
+          |> Enum.into(%{})
+          |> then(fn map -> struct(Data.FunctionMetadata, map) end)
+
         {:ok, metadata}
 
       {:error, _} ->

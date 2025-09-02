@@ -105,16 +105,7 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
   """
   @spec schedule_on_blocks([Block.t()], %{String.t() => Data.Worker.t()}, Data.FunctionStruct.t()) ::
           {:ok, Data.Worker.t()} | {:error, :no_valid_workers}
-  def schedule_on_blocks(
-        [
-          %Block{
-            workers: "*"
-          } = block
-          | rest
-        ],
-        workers,
-        function
-      ) do
+  def schedule_on_blocks([%Block{workers: "*"} = block | rest], workers, function) do
     new_block = block |> Map.put(:workers, workers |> Map.keys())
     schedule_on_blocks([new_block | rest], workers, function)
   end
@@ -131,7 +122,7 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
             }
           }
           | rest
-        ],
+        ] = _blocks,
         workers,
         function
       ) do
@@ -211,6 +202,8 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
       case memory do
         %{free: free, total: total} -> {free, total}
         %{available: available, total: total} -> {available, total}
+        %{} -> {0, 0}  # Handle empty memory map
+        nil -> {0, 0}  # Handle nil memory
       end
 
     function_capacity <= available and
@@ -221,6 +214,7 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
 
   @doc """
   Helper function, checks if a worker satisfies the simplified affinity requirements in AAPP format.
+  This function now also considers current function invocations on the worker.
 
   ## Parameters
   - worker: a Data.Worker struct with tag information.
@@ -235,22 +229,9 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
     true
   end
 
-  def affinity_valid?(%Data.Worker{tag: worker_tag}, affinity) when is_binary(worker_tag) do
-    {antiaffinity_rules, affinity_rules} =
-      affinity
-      |> Enum.split_with(fn rule -> String.starts_with?(rule, "!") end)
-
-    antiaffinity_tags = antiaffinity_rules |> Enum.map(fn "!" <> tag -> tag end)
-
-    has_forbidden_tag = worker_tag in antiaffinity_tags
-
-    has_required_tags =
-      case affinity_rules do
-        [] -> true
-        rules -> worker_tag in rules
-      end
-
-    not has_forbidden_tag and has_required_tags
+  def affinity_valid?(%Data.Worker{tag: worker_tag, long_name: worker_name}, affinity)
+      when is_binary(worker_tag) do
+    Core.Adapters.AffinityTracker.affinity_compatible?(worker_name, affinity)
   end
 
   def affinity_valid?(_, _) do

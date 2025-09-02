@@ -71,6 +71,10 @@ defmodule Core.Domain.Invoker do
       with {:ok, worker} <- Nodes.worker_nodes() |> Scheduler.select(func, ivk.config, ivk.args) do
         update_concurrent(worker, +1)
 
+        # Track function tag for affinity constraints
+        function_tag = func.metadata.tag
+        Core.Adapters.AffinityTracker.track_function(worker, function_tag)
+
         out =
           case invoke_without_code(worker, ivk, f.hash, func.metadata) do
             {:error, :code_not_found, handler} ->
