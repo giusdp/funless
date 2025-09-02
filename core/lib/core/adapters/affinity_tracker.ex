@@ -92,8 +92,22 @@ defmodule Core.Adapters.AffinityTracker do
     # Check anti-affinity: if function requires !tag and worker has tag → REJECT
     has_forbidden_tag = Enum.any?(antiaffinity_tags, fn tag -> tag in current_tags end)
 
-    # Check affinity: if function requires tag and worker does NOT have tag → REJECT
-    missing_required_tags = Enum.any?(affinity_tags, fn tag -> tag not in current_tags end)
+    # Check positive affinity: enforce as hard constraint
+    # Only allow initial scheduling on empty workers
+    missing_required_tags =
+      case {affinity_tags, current_tags} do
+        # No affinity requirements
+        {[], _} ->
+          false
+
+        # Worker has no tags
+        {_required, []} ->
+          false
+
+        {required, running} ->
+          # Require ALL affinity tags to be present when worker has running functions
+          Enum.any?(required, fn tag -> tag not in running end)
+      end
 
     not has_forbidden_tag and not missing_required_tags
   end
@@ -118,7 +132,7 @@ defmodule Core.Adapters.AffinityTracker do
       end
 
     # Add the function tag if not already present
-    updated_tags = 
+    updated_tags =
       if function_tag in current_tags do
         current_tags
       else

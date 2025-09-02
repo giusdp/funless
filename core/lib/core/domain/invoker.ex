@@ -71,9 +71,16 @@ defmodule Core.Domain.Invoker do
       with {:ok, worker} <- Nodes.worker_nodes() |> Scheduler.select(func, ivk.config, ivk.args) do
         update_concurrent(worker, +1)
 
+        # Get worker's long_name from metrics (worker is an atom here)
+        worker_name =
+          case Metrics.resources(worker) do
+            {:ok, %Data.Worker{long_name: long_name}} -> long_name
+            _ -> to_string(worker)
+          end
+
         # Track function tag for affinity constraints
         function_tag = func.metadata.tag
-        Core.Adapters.AffinityTracker.track_function(worker, function_tag)
+        Core.Adapters.AffinityTracker.track_function(worker_name, function_tag)
 
         out =
           case invoke_without_code(worker, ivk, f.hash, func.metadata) do
@@ -88,6 +95,8 @@ defmodule Core.Domain.Invoker do
               save_to_sinks(res, ivk.module, ivk.function)
           end
 
+        # Untrack function tag after invocation completes
+        Core.Adapters.AffinityTracker.untrack_function(worker_name, function_tag)
         update_concurrent(worker, -1)
 
         out

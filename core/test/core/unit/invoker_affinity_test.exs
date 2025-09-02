@@ -49,31 +49,31 @@ defmodule Core.Unit.InvokerAffinityTest do
       assert [] = AffinityTracker.get_worker_tags(worker)
     end
 
-    test "tracks all tags in single list" do
+    test "tracks multiple function tags" do
       worker = "test_worker_3"
 
       # Track regular tag
       AffinityTracker.track_function(worker, "compute")
       assert ["compute"] = AffinityTracker.get_worker_tags(worker)
 
-      # Track anti-affinity tag (stored with ! prefix)
-      AffinityTracker.track_function(worker, "!heavy_eu")
+      # Track another regular tag
+      AffinityTracker.track_function(worker, "heavy_eu")
       tags = AffinityTracker.get_worker_tags(worker)
-      assert Enum.sort(tags) == ["!heavy_eu", "compute"]
+      assert Enum.sort(tags) == ["compute", "heavy_eu"]
 
-      # Track another anti-affinity tag
-      AffinityTracker.track_function(worker, "!memory_intensive")
+      # Track third tag
+      AffinityTracker.track_function(worker, "memory_intensive")
       tags = AffinityTracker.get_worker_tags(worker)
-      assert Enum.sort(tags) == ["!heavy_eu", "!memory_intensive", "compute"]
+      assert Enum.sort(tags) == ["compute", "heavy_eu", "memory_intensive"]
 
-      # Untrack anti-affinity tag
-      AffinityTracker.untrack_function(worker, "!heavy_eu")
+      # Untrack one tag
+      AffinityTracker.untrack_function(worker, "heavy_eu")
       tags = AffinityTracker.get_worker_tags(worker)
-      assert Enum.sort(tags) == ["!memory_intensive", "compute"]
+      assert Enum.sort(tags) == ["compute", "memory_intensive"]
 
       # Clean up
       AffinityTracker.untrack_function(worker, "compute")
-      AffinityTracker.untrack_function(worker, "!memory_intensive")
+      AffinityTracker.untrack_function(worker, "memory_intensive")
       assert [] = AffinityTracker.get_worker_tags(worker)
     end
 
@@ -107,6 +107,66 @@ defmodule Core.Unit.InvokerAffinityTest do
 
       # Clean up
       AffinityTracker.untrack_function(worker, "compute")
+    end
+
+    test "simulates invocation lifecycle with tracking" do
+      worker = "test_worker_5"
+
+      # Initially no tags tracked
+      assert [] = AffinityTracker.get_worker_tags(worker)
+
+      # Simulate invocation start - track function tag
+      function_tag = "web_service"
+      AffinityTracker.track_function(worker, function_tag)
+      assert [function_tag] = AffinityTracker.get_worker_tags(worker)
+
+      # During invocation, affinity checks should work
+      assert AffinityTracker.affinity_compatible?(worker, ["web_service"])  # Can schedule more web_service
+      refute AffinityTracker.affinity_compatible?(worker, ["!web_service"]) # Cannot schedule anti-web_service
+      refute AffinityTracker.affinity_compatible?(worker, ["batch_job"])    # Cannot schedule batch_job (missing)
+
+      # Simulate invocation completion - untrack function tag
+      AffinityTracker.untrack_function(worker, function_tag)
+      assert [] = AffinityTracker.get_worker_tags(worker)
+
+      # After completion, different scheduling decisions are possible
+      assert AffinityTracker.affinity_compatible?(worker, ["batch_job"])    # Can now schedule batch_job
+      assert AffinityTracker.affinity_compatible?(worker, ["!web_service"]) # Can now schedule anti-web_service
+    end
+
+    test "multiple concurrent invocations on same worker" do
+      worker = "test_worker_6"
+
+      # Start multiple invocations with different function tags
+      AffinityTracker.track_function(worker, "api_server")
+      AffinityTracker.track_function(worker, "compute")
+      
+      tags = AffinityTracker.get_worker_tags(worker)
+      assert Enum.sort(tags) == ["api_server", "compute"]
+
+      # Scheduling should respect current tags
+      assert AffinityTracker.affinity_compatible?(worker, ["api_server"])          # Can schedule more api_server
+      assert AffinityTracker.affinity_compatible?(worker, ["compute"])             # Can schedule more compute
+      assert AffinityTracker.affinity_compatible?(worker, ["api_server", "compute"]) # Can schedule functions requiring both
+      refute AffinityTracker.affinity_compatible?(worker, ["!api_server"])         # Cannot schedule function that avoids api_server
+      refute AffinityTracker.affinity_compatible?(worker, ["!compute"])            # Cannot schedule function that avoids compute
+      assert AffinityTracker.affinity_compatible?(worker, ["!batch_processing"])  # Can schedule function avoiding other tags
+
+      # End one invocation
+      AffinityTracker.untrack_function(worker, "compute")
+      assert ["api_server"] = AffinityTracker.get_worker_tags(worker)
+
+      # Functions requiring compute cannot be scheduled anymore (hard affinity)
+      refute AffinityTracker.affinity_compatible?(worker, ["compute"])
+      refute AffinityTracker.affinity_compatible?(worker, ["api_server", "compute"])
+
+      # Clean up
+      AffinityTracker.untrack_function(worker, "api_server")
+      assert [] = AffinityTracker.get_worker_tags(worker)
+      
+      # Now any function can be scheduled on empty worker
+      assert AffinityTracker.affinity_compatible?(worker, ["compute"])
+      assert AffinityTracker.affinity_compatible?(worker, ["heavy_compute"])
     end
   end
 end
