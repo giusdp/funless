@@ -37,11 +37,12 @@ defmodule CoreWeb.Plug.Authenticate do
       assign(conn, :current_user, name)
     else
       _error ->
-        conn
-        |> put_status(:unauthorized)
-        |> Phoenix.Controller.put_view(CoreWeb.ErrorJSON)
-        |> Phoenix.Controller.render(:"401")
-        |> halt()
+        assign(conn, :current_user, nil)
+        # conn
+        # |> put_status(:unauthorized)
+        # |> Phoenix.Controller.put_view(CoreWeb.ErrorJSON)
+        # |> Phoenix.Controller.render(:"401")
+        # |> halt()
     end
   end
 

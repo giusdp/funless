@@ -91,7 +91,6 @@ defmodule Core.MixProject do
       ],
       itest: [
         "ecto.setup --quiet",
-        "run priv/subjects_repo/seeds/seeds.exs",
         "test --only integration_test"
       ]
     ]
