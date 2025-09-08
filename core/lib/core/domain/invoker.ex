@@ -59,6 +59,8 @@ defmodule Core.Domain.Invoker do
 
     with [f] <- Functions.get_by_name_in_mod!(ivk.function, ivk.module),
          {:ok, metadata} <- FunctionsMetadata.get_function_metadata_by_function_id(f.id) do
+      start_ns = System.monotonic_time(:nanosecond)
+
       func =
         struct(FunctionStruct, %{
           name: ivk.function,
@@ -68,7 +70,25 @@ defmodule Core.Domain.Invoker do
           metadata: struct(FunctionMetadata, %{tag: metadata.tag, capacity: metadata.capacity})
         })
 
-      with {:ok, worker} <- Nodes.worker_nodes() |> Scheduler.select(func, ivk.config, ivk.args) do
+      selected = Nodes.worker_nodes() |> Scheduler.select(func, ivk.config, ivk.args)
+
+      duration_ms = (System.monotonic_time(:nanosecond) - start_ns) / 1_000_000
+      dir = "/tmp/funless/scheduling"
+      File.mkdir_p!(dir)
+      file = Path.join(dir, "durations.csv")
+      line = "#{duration_ms}\n"
+
+      res = File.write(file, line, [:append])
+
+      case res do
+        :ok ->
+          Logger.debug("Scheduling duration appended to #{file}")
+
+        {:error, reason} ->
+          Logger.warn("Failed to append scheduling duration: #{inspect(reason)}")
+      end
+
+      with {:ok, worker} <- selected do
         update_concurrent(worker, +1)
 
         # Get worker's long_name from metrics (worker is an atom here)
