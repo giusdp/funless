@@ -43,6 +43,11 @@ defmodule Worker.Adapters.Requests.Cluster do
     InvokeFunction.invoke(function, args) |> reply_to_core(from)
   end
 
+  def invoke_cast(function, args, from) do
+    Logger.info("Invoking cast for #{function.name} with args from #{inspect(from)}.")
+    InvokeFunction.invoke(function, args) |> send_to_core(from)
+  end
+
   def set_info(name, tag, from) do
     NodeInfo.set_node_info(name, tag) |> reply_to_core(from)
   end
@@ -109,4 +114,6 @@ defmodule Worker.Adapters.Requests.Cluster do
 
   # reply should be either {:ok, result} or {:error, reason}
   defp reply_to_core(reply, from), do: GenServer.reply(from, reply)
+
+  defp send_to_core(reply, pid), do: send(pid, reply)
 end

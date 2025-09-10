@@ -70,25 +70,7 @@ defmodule Core.Domain.Invoker do
           metadata: struct(FunctionMetadata, %{tag: metadata.tag, capacity: metadata.capacity})
         })
 
-      selected = Nodes.worker_nodes() |> Scheduler.select(func, ivk.config, ivk.args)
-
-      duration_ms = (System.monotonic_time(:nanosecond) - start_ns) / 1_000_000
-      dir = "/tmp/funless/scheduling"
-      File.mkdir_p!(dir)
-      file = Path.join(dir, "durations.csv")
-      line = "#{duration_ms}\n"
-
-      res = File.write(file, line, [:append])
-
-      case res do
-        :ok ->
-          Logger.debug("Scheduling duration appended to #{file}")
-
-        {:error, reason} ->
-          Logger.warn("Failed to append scheduling duration: #{inspect(reason)}")
-      end
-
-      with {:ok, worker} <- selected do
+      with {:ok, worker} <- Nodes.worker_nodes() |> Scheduler.select(func, ivk.config, ivk.args) do
         update_concurrent(worker, +1)
 
         # Get worker's long_name from metrics (worker is an atom here)
@@ -103,7 +85,7 @@ defmodule Core.Domain.Invoker do
         Core.Adapters.AffinityTracker.track_function(worker_name, function_tag)
 
         out =
-          case invoke_without_code(worker, ivk, f.hash, func.metadata) do
+          case invoke_without_code(worker, start_ns, ivk, f.hash, func.metadata) do
             {:error, :code_not_found, handler} ->
               [%{code: code}] = Functions.get_code_by_name_in_mod!(ivk.function, ivk.module)
 
@@ -156,10 +138,10 @@ defmodule Core.Domain.Invoker do
 
   @spec invoke_without_code(atom(), InvokeParams.t(), binary(), FunctionMetadata.t()) ::
           {:ok, InvokeResult.t()} | {:error, :code_not_found, pid()} | invoke_errors()
-  def invoke_without_code(worker, ivk, hash, metadata \\ %FunctionMetadata{}) do
+  def invoke_without_code(worker, start_ns, ivk, hash, metadata \\ %FunctionMetadata{}) do
     Logger.debug("Invoker: invoking #{ivk.module}/#{ivk.function} without code")
     # send invocation without code
-    Commands.send_invoke(worker, ivk.function, ivk.module, hash, ivk.args, metadata)
+    Commands.send_invoke(worker, start_ns, ivk.function, ivk.module, hash, ivk.args, metadata)
   end
 
   @spec invoke_with_code(atom(), pid(), InvokeParams.t(), FunctionStruct.t()) ::

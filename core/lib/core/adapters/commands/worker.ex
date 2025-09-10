@@ -32,28 +32,54 @@ defmodule Core.Adapters.Commands.Worker do
   #                                  Only the send_invoke call should return this.
 
   @impl true
-  def send_invoke(worker, name, mod, hash, args, metadata \\ {}) do
+  def send_invoke(worker, start_ns, name, mod, hash, args, metadata \\ {}) do
     worker_addr = {:worker, worker}
-    cmd = {:invoke, %{name: name, module: mod, hash: hash, metadata: metadata}, args}
-    Logger.info("Sending invoke for #{mod}/#{name} to #{inspect(worker_addr)}")
+    function = %{name: name, module: mod, hash: hash, metadata: metadata}
+    from = self()
 
-    case GenServer.call(worker_addr, cmd, 60_000) do
+    Logger.info("Sending invoke for #{mod}/#{name} to #{inspect(worker_addr)}")
+    GenServer.cast(worker_addr, {:invoke, function, args, from})
+
+    duration_ms = (System.monotonic_time(:nanosecond) - start_ns) / 1_000_000
+    dir = "/tmp/funless/scheduling"
+    File.mkdir_p!(dir)
+    file = Path.join(dir, "durations.csv")
+    line = "#{duration_ms}\n"
+
+    File.write(file, line, [:append])
+
+    receive do
       {:ok, result} -> {:ok, %InvokeResult{result: result}}
       {:error, :code_not_found, handler} -> {:error, :code_not_found, handler}
       {:error, err} -> {:error, err}
+    after
+      60_000 -> {:error, :timeout}
     end
+
+    # case GenServer.call(worker_addr, cmd, 60_000) do
+    #   {:ok, result} -> {:ok, %InvokeResult{result: result}}
+    #   {:error, :code_not_found, handler} -> {:error, :code_not_found, handler}
+    #   {:error, err} -> {:error, err}
+    # end
   end
 
   @impl true
   def send_invoke_with_code(_worker, worker_handler, %FunctionStruct{code: _, hash: _} = func) do
     worker_addr = worker_handler
-    cmd = {:invoke, func}
+    cmd = {:invoke, func, self()}
 
     Logger.info("Sending invoke with code #{func.module}/#{func.name} to #{inspect(worker_addr)}")
+    GenServer.cast(worker_addr, cmd)
+    # case GenServer.call(worker_addr, cmd, 60_000) do
+    #   {:ok, result} -> {:ok, %InvokeResult{result: result}}
+    #   {:error, err} -> {:error, err}
+    # end
 
-    case GenServer.call(worker_addr, cmd, 60_000) do
-      {:ok, result} -> {:ok, %InvokeResult{result: result}}
-      {:error, err} -> {:error, err}
+    receive do
+      {:invoke_result, result} -> {:ok, %InvokeResult{result: result}}
+      {:invoke_error, err} -> {:error, err}
+    after
+      60_000 -> {:error, :timeout}
     end
   end
 
