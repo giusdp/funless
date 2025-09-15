@@ -82,6 +82,10 @@ defmodule Core.Adapters.AffinityTracker do
   def affinity_compatible?(worker_name, affinity_list) do
     current_tags = get_worker_tags(worker_name)
 
+    Logger.info(
+      "Affinity Tracker: checking compatibility of worker #{worker_name} with tags #{inspect(current_tags)} against affinity rules #{inspect(affinity_list)}"
+    )
+
     {antiaffinity_rules, affinity_rules} =
       affinity_list
       |> Enum.split_with(fn rule -> String.starts_with?(rule, "!") end)
@@ -108,6 +112,10 @@ defmodule Core.Adapters.AffinityTracker do
           # Require ALL affinity tags to be present when worker has running functions
           Enum.any?(required, fn tag -> tag not in running end)
       end
+
+    Logger.info(
+      "Affinity Tracker: worker #{worker_name} has forbidden tag: #{has_forbidden_tag}, missing required tags: #{missing_required_tags}"
+    )
 
     not has_forbidden_tag and not missing_required_tags
   end

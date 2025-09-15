@@ -37,14 +37,14 @@ defmodule Worker.Adapters.Requests.Cluster.Server do
 
   @impl true
   def handle_cast({:invoke, function, from}, state) do
-    Logger.debug("Received cast invocation request for #{function.name} from #{inspect(from)}.")
+    Logger.notice("Received cast invocation request for #{function.name} from #{inspect(from)}.")
     spawn(Cluster, :invoke_cast, [function, %{}, from])
     {:noreply, state}
   end
 
   @impl true
   def handle_cast({:invoke, function, args, from}, state) do
-    Logger.debug(
+    Logger.notice(
       "Received cast invocation request for #{function.name} with args from #{inspect(from)}."
     )
 
@@ -54,14 +54,14 @@ defmodule Worker.Adapters.Requests.Cluster.Server do
 
   @impl true
   def handle_call({:invoke, function}, from, _state) do
-    Logger.info("Received invocation request for #{function.name}.")
+    Logger.notice("Received invocation request for #{function.name}.")
     spawn(Cluster, :invoke, [function, %{}, from])
     {:noreply, nil}
   end
 
   @impl true
   def handle_call({:invoke, function, args}, from, _state) do
-    Logger.info("Received invocation request for #{function.name} with args.")
+    Logger.notice("Received invocation request for #{function.name} with args.")
     spawn(Cluster, :invoke, [function, args, from])
     {:noreply, nil}
   end

@@ -16,6 +16,7 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
   @moduledoc """
   Implementation of the SchedulingPolicy protocol for the AAPP datatype.
   """
+  require Logger
   alias Data.Configurations.AAPP
   alias Data.Configurations.AAPP.Block
   alias Data.Configurations.AAPP.Tag
@@ -56,6 +57,8 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
       ) do
     default = tags |> Map.get("default")
     tag = tags |> Map.get(tag_name, default)
+
+    Logger.notice("Scheduler: selecting with AAPP configuration, tag #{tag_name}")
 
     case tag do
       %Tag{blocks: [_ | _] = blocks, followup: followup} ->
@@ -107,6 +110,7 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
           {:ok, Data.Worker.t()} | {:error, :no_valid_workers}
   def schedule_on_blocks([%Block{workers: "*"} = block | rest], workers, function) do
     new_block = block |> Map.put(:workers, workers |> Map.keys())
+    Logger.notice("Scheduler: scheduling on all workers block #{inspect(new_block)}")
     schedule_on_blocks([new_block | rest], workers, function)
   end
 
@@ -138,6 +142,8 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
         valid?(w, function, invalidate_capacity, invalidate_invocations) and
           affinity_valid?(w, affinity)
       end)
+
+    Logger.notice("Scheduler: filtered workers #{inspect(filtered_workers)}")
 
     case filtered_workers do
       [] ->
@@ -202,8 +208,10 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
       case memory do
         %{free: free, total: total} -> {free, total}
         %{available: available, total: total} -> {available, total}
-        %{} -> {0, 0}  # Handle empty memory map
-        nil -> {0, 0}  # Handle nil memory
+        # Handle empty memory map
+        %{} -> {0, 0}
+        # Handle nil memory
+        nil -> {0, 0}
       end
 
     function_capacity <= available and
