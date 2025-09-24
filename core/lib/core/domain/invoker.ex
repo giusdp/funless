@@ -98,6 +98,7 @@ defmodule Core.Domain.Invoker do
           end
 
         # Untrack function tag after invocation completes
+        Logger.info("Untracking function tag #{function_tag} from worker #{worker_name}")
         Core.Adapters.AffinityTracker.untrack_function(worker_name, function_tag)
         update_concurrent(worker, -1)
 

@@ -110,7 +110,6 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
           {:ok, Data.Worker.t()} | {:error, :no_valid_workers}
   def schedule_on_blocks([%Block{workers: "*"} = block | rest], workers, function) do
     new_block = block |> Map.put(:workers, workers |> Map.keys())
-    Logger.notice("Scheduler: scheduling on all workers block #{inspect(new_block)}")
     schedule_on_blocks([new_block | rest], workers, function)
   end
 
@@ -142,8 +141,6 @@ defimpl Core.Domain.Policies.SchedulingPolicy, for: Data.Configurations.AAPP do
         valid?(w, function, invalidate_capacity, invalidate_invocations) and
           affinity_valid?(w, affinity)
       end)
-
-    Logger.notice("Scheduler: filtered workers #{inspect(filtered_workers)}")
 
     case filtered_workers do
       [] ->

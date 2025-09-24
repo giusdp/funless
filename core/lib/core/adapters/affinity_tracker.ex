@@ -149,7 +149,7 @@ defmodule Core.Adapters.AffinityTracker do
 
     :ets.insert(table, {worker_name, updated_tags})
 
-    Logger.debug("Affinity Tracker: tracking #{function_tag} on #{worker_name}")
+    Logger.info("Affinity Tracker: tracking #{function_tag} on #{worker_name}")
     {:reply, :ok, table}
   end
 
@@ -166,7 +166,7 @@ defmodule Core.Adapters.AffinityTracker do
 
     :ets.insert(table, {worker_name, updated_tags})
 
-    Logger.debug("Affinity Tracker: untracking #{function_tag} from #{worker_name}")
+    Logger.info("Affinity Tracker: untracking #{function_tag} from #{worker_name}")
     {:reply, :ok, table}
   end
 end
