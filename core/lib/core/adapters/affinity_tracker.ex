@@ -80,44 +80,44 @@ defmodule Core.Adapters.AffinityTracker do
   - `false` if affinity constraints are violated
   """
   def affinity_compatible?(worker_name, affinity_list) do
-    current_tags = get_worker_tags(worker_name)
+    current_tags_in_worker = get_worker_tags(worker_name)
 
     Logger.info(
-      "Affinity Tracker: checking compatibility of worker #{worker_name} with tags #{inspect(current_tags)} against affinity rules #{inspect(affinity_list)}"
+      "Affinity Tracker: checking compatibility of worker #{worker_name} with tags #{inspect(current_tags_in_worker)} against affinity rules #{inspect(affinity_list)}"
     )
 
     {antiaffinity_rules, affinity_rules} =
       affinity_list
       |> Enum.split_with(fn rule -> String.starts_with?(rule, "!") end)
 
-    antiaffinity_tags = Enum.map(antiaffinity_rules, fn "!" <> tag -> tag end)
-    affinity_tags = affinity_rules
-
-    # Check anti-affinity: if function requires !tag and worker has tag → REJECT
-    has_forbidden_tag = Enum.any?(antiaffinity_tags, fn tag -> tag in current_tags end)
+    # Check anti-affinity: if function requires !tag and worker has tag -> REJECT
+    fails_antiaffinity_check =
+      Enum.map(antiaffinity_rules, fn "!" <> tag -> tag end)
+      |> Enum.any?(fn tag -> tag in current_tags_in_worker end)
 
     # Check positive affinity: enforce as hard constraint
     # Only allow initial scheduling on empty workers
-    missing_required_tags =
-      case {affinity_tags, current_tags} do
+    fails_affinity_check =
+      case {affinity_rules, current_tags_in_worker} do
         # No affinity requirements
         {[], _} ->
           false
 
         # Worker has no tags
         {_required, []} ->
-          false
+          true
 
-        {required, running} ->
+        {required, current} ->
           # Require ALL affinity tags to be present when worker has running functions
-          Enum.any?(required, fn tag -> tag not in running end)
+          # if there is at least 1 required tag missing in the current tags then REJECT
+          Enum.any?(required, fn tag -> tag not in current end)
       end
 
     Logger.info(
-      "Affinity Tracker: worker #{worker_name} has forbidden tag: #{has_forbidden_tag}, missing required tags: #{missing_required_tags}"
+      "Affinity Tracker: worker #{worker_name} fails anti-aff check: #{fails_antiaffinity_check}, fails aff check: #{fails_affinity_check}"
     )
 
-    not has_forbidden_tag and not missing_required_tags
+    not fails_antiaffinity_check and not fails_affinity_check
   end
 
   # GenServer callbacks
